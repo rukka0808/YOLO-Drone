@@ -185,7 +185,7 @@ void draw_boxes(cv::Mat mat_img, std::vector<bbox_t> result_vec, std::vector<std
         cv::rectangle(mat_img, cv::Rect(i.x, i.y, i.w, i.h), color, 2);
         if (obj_names.size() > i.obj_id) {
             std::string obj_name = obj_names[i.obj_id];
-            if (i.track_id > 0) obj_name += " - " + std::to_string(i.track_id);
+            // if (i.track_id > 0) obj_name += " - " + std::to_string(i.track_id);
             cv::Size const text_size = getTextSize(obj_name, cv::FONT_HERSHEY_COMPLEX_SMALL, 1.2, 2, 0);
             int max_width = (text_size.width > i.w + 2) ? text_size.width : (i.w + 2);
             max_width = std::max(max_width, (int)i.w + 2);
@@ -222,6 +222,19 @@ void show_console_result(std::vector<bbox_t> const result_vec, std::vector<std::
         std::cout << "obj_id = " << i.obj_id << ",  x = " << i.x << ", y = " << i.y
             << ", w = " << i.w << ", h = " << i.h
             << std::setprecision(3) << ", prob = " << i.prob << std::endl;
+    }
+}
+
+void custom_result(std::vector<bbox_t> const result_vec, int frame_id = -1)
+{
+    if (result_vec.size() <= 0)
+        return;
+
+    for (auto &i : result_vec)
+    {
+        std::cout << frame_id << " " << i.obj_id << " " << i.x << " " << i.y
+                  << " " << i.w << " " << i.h
+                  << std::setprecision(3) << " " << i.prob << std::endl;
     }
 }
 
@@ -269,6 +282,12 @@ public:
 
 int main(int argc, char *argv[])
 {
+    struct jbox_t {
+        int frame_id;
+        int x, y;
+    };
+    std::vector<jbox_t> all_result_vec;
+
     std::string  names_file = "data/coco.names";
     std::string  cfg_file = "cfg/yolov3.cfg";
     std::string  weights_file = "yolov3.weights";
@@ -542,6 +561,24 @@ int main(int argc, char *argv[])
 
                         //small_preview.set(draw_frame, result_vec);
                         //large_preview.set(draw_frame, result_vec);
+                        for (auto &i : result_vec)
+                        {
+                            jbox_t jj;
+                            jj.frame_id = detection_data.frame_id;
+                            jj.x = i.x + (i.w / 2);
+                            jj.y = i.y + (i.h / 2);
+                            all_result_vec.push_back(jj);
+                            // std::cout << all_result_vec.size() << " " << jj.frame_id << " " << jj.x << " " << jj.y << std::endl;
+                        }
+                        cv::Scalar color = obj_id_to_color(0);
+
+                        for (auto &i : all_result_vec) {
+                            if (i.frame_id <= 0)
+                                cv::line(draw_frame, cv::Point(i.x, i.y), cv::Point(i.x, i.y), color, 5);
+                            else
+                                cv::line(draw_frame, cv::Point((&i-1)->x, (&i-1)->y), cv::Point(i.x, i.y), color, 5);
+                        }
+                        // custom_result(result_vec, detection_data.frame_id);
                         draw_boxes(draw_frame, result_vec, obj_names, current_fps_det, current_fps_cap);
                         //show_console_result(result_vec, obj_names, detection_data.frame_id);
                         //large_preview.draw(draw_frame);
